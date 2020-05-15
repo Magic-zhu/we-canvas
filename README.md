@@ -4,6 +4,49 @@
 
 麻麻再也不用担心我记不住api了😊
 
+## 更新/fix
+
++ 按照链式调用的顺序渲染 -> 书写顺序在后的渲染在上层
++ image 支持圆角
+
+图示
+
+![image](./005.png)
+```js
+    let cav = new weCanvas('PosterCouponCode',this);
+    cav
+    .text({
+        x:50,
+        y:60,
+        fontSize:18,
+        color:"#FFA400",
+        text:"Jessie 向你推荐"
+    })
+    .image({
+        x:20,
+        y:100,
+        width:285,
+        height:240,
+        url:"https://tc.woaap.com/Mcn/images/poster_coupon_bg.png",
+    })
+    .text({
+        x:140,
+        y:170,
+        fontSize:15,
+        color:"#666666",
+        text:"优惠码"
+    })
+    .image({
+        x:130,
+        y:80,
+        width:66,
+        height:66,
+        url:"https://dss0.bdstatic.com/70cFuHSh_Q1YnxGkpoWK1HF6hhy/it/u=1023235865,1560869099&fm=26&gp=0.jpg",
+        radius:33,
+    })
+    .draw()
+```
+
 ## 快速上手
 
 ### 引入
@@ -175,6 +218,7 @@ cav //
 |y|number|左上角的纵坐标|是
 |width|number|宽|否
 |height|number|高|否
+|radius|number|圆角|否
 
 ### text元素 cav.text(options)
 

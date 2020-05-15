@@ -12,6 +12,8 @@ class weappCanvas {
         this.canvasId = canvasId;
         this.component = component;
         this.imageQueue = [];
+        this.renderQuene = [];
+        this.hasImage=false;
         this.init();
     }
 
@@ -27,37 +29,41 @@ class weappCanvas {
     }
 
     box(options) {
-        this.vm.save();
-        this.setBackground(options);
-        this.setBorder(options);
-        this.setTransform(options);
-        this.boxRender(options);
-        this.vm.restore();
+        let render = () =>{
+            this.boxRender(options);
+        }
+        this.renderQuene.push(render);
         return this
     }
 
     text(options) {
-        this.vm.save();
-        this.setLineSpace(options);
-        this.vm.setFontSize(options.fontSize);
-        this.vm.setFillStyle(options.color);
-        this.textRender(options);
-        this.vm.restore();
+        let render = () =>{
+            this.textRender(options);
+        }
+        this.renderQuene.push(render);
         return this
     }
 
     image(options) {
         this.imageQueue.push(options);
+        let render = () =>{
+            this.imageRender(options);
+        }
+        this.renderQuene.push(render)
         return this
     }
 
     draw(save = false) {
         return new Promise(resolve => {
             if (this.imageQueue.length != 0) {
-                this.imageRender(save,()=>{
-                    resolve()
+                this.preLoadImage(()=>{
+                    this.render();
+                    this.vm.draw(save,()=>{
+                        resolve()
+                    })
                 })
             } else {
+                this.render();
                 this.vm.draw(save, () => {
                     resolve()
                 });
@@ -146,6 +152,18 @@ class weappCanvas {
             });
         })
 
+    }
+
+    preLoadImage(callback) {
+        let t = this.imageQueue.map((item, index) => {
+            return this.downLoadImage(item.url, index)
+        })
+        Promise.all(t).then(res => {
+            res.forEach((item, index) => {
+                this.imageQueue[index].url = item
+            })
+            callback()
+        })
     }
 
     setBackground(options) {
@@ -260,6 +278,10 @@ class weappCanvas {
     // =================渲染器=================
 
     boxRender(options) {
+        this.vm.save();
+        this.setBackground(options);
+        this.setBorder(options);
+        this.setTransform(options);
         //区分是否有圆角采用不同模式渲染
         if (options.radius) {
             let { x, y } = options;
@@ -271,9 +293,14 @@ class weappCanvas {
         } else {
             this.vm.fillRect(options.x, options.y, options.width, options.height);
         }
+        this.vm.restore();
     }
 
     textRender(options) {
+        this.vm.save();
+        this.setLineSpace(options);
+        this.vm.setFontSize(options.fontSize);
+        this.vm.setFillStyle(options.color);
         if (options.overflow == 'ellipsis') {
             if (!options.maxLength) {
                 console.error('需要指定最大字节数');
@@ -296,25 +323,35 @@ class weappCanvas {
             return
         }
         this.vm.fillText(options.text, options.x, options.y);
+        this.vm.restore();
     }
 
-    imageRender(save,callback) {
-        let t = this.imageQueue.map((item, index) => {
-            return this.downLoadImage(item.url, index)
-        })
-        Promise.all(t).then(res => {
-            res.forEach((item, index) => {
-                this.vm.drawImage(
-                    item,
-                    this.imageQueue[index].x,
-                    this.imageQueue[index].y,
-                    this.imageQueue[index].width || this.imageQueue[index].swidth,
-                    this.imageQueue[index].height || this.imageQueue[index].sheight,
-                )
-            })
-            this.vm.draw(save,()=>{
-                callback()
-            });
+    imageRender(options) {
+        this.vm.save();
+        if(options.radius){
+            this.drawRadiusRoute(
+                options.x,
+                options.y,
+                options.width||options.swidth,
+                options.height||options.sHeight,
+                options.radius);
+            this.vm.clip();
+        }
+        let temp = JSON.parse(JSON.stringify(this.imageQueue[0]));
+        this.vm.drawImage(
+            temp.url,
+            temp.x,
+            temp.y,
+            temp.width || temp.swidth,
+            temp.height || temp.sheight,
+        )
+        this.imageQueue.shift();
+        this.vm.restore();
+    }
+
+    render(){
+        this.renderQuene.forEach(ele=>{
+            ele();
         })
     }
 }
