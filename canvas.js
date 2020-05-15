@@ -72,6 +72,12 @@ class weappCanvas {
     }
 
     createImage(params) {
+        if(!params){
+            params = {};
+        }
+        if(!params.canvasId){
+            params.canvasId = this.canvasId;
+        }
         return new Promise(resolve=>{
             wx.canvasToTempFilePath({
                 ...params,

@@ -241,7 +241,9 @@ cav //
 
 返回一个promise 可以在.then中 进行画图完成后的操作
 
-### cav.saveImage()
+### cav.saveImage(params)
+
+`params`:非必填 等同于原来的参数
 
 将画布保存到相册(已处理过权限问题)
 
