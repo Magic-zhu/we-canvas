@@ -1,6 +1,7 @@
 /**
  * 微信canvas库封装
  * @author magic-zhu
+ * @version 1.0.1
  */
 /**
  * 当在组件中使用时需要传入 this (组件的this)
@@ -13,7 +14,8 @@ class weappCanvas {
         this.component = component;
         this.imageQueue = [];
         this.renderQuene = [];
-        this.hasImage=false;
+        this.imageQueneBackup = [];
+        this.canvasTempFilePath = '';
         this.init();
     }
 
@@ -46,6 +48,7 @@ class weappCanvas {
 
     image(options) {
         this.imageQueue.push(options);
+        this.imageQueneBackup.push(options);
         let render = () =>{
             this.imageRender(options);
         }
@@ -79,12 +82,17 @@ class weappCanvas {
             params.canvasId = this.canvasId;
         }
         return new Promise(resolve=>{
-            wx.canvasToTempFilePath({
-                ...params,
-                success:(res)=>{
-                    resolve(res.tempFilePath)
-                }
-            },this.component)
+            if(this.canvasTempFilePath==''){
+                wx.canvasToTempFilePath({
+                    ...params,
+                    success:(res)=>{
+                        this.canvasTempFilePath = res.tempFilePath;
+                        resolve(res.tempFilePath)
+                    }
+                },this.component)
+            }else{
+                resolve(this.canvasTempFilePath)
+            }
         })
     }
     
@@ -359,6 +367,7 @@ class weappCanvas {
         this.renderQuene.forEach(ele=>{
             ele();
         })
+        this.imageQueue = JSON.parse(JSON.stringify(this.imageQueneBackup));
     }
 }
 export default weappCanvas
