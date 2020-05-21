@@ -120,6 +120,7 @@ class weappCanvas {
                             title: '保存图片失败',
                             duration: 1500,
                             mask: false,
+                            icon:'none'
                         });
                     },
                 });
