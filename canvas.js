@@ -95,9 +95,13 @@ class weappCanvas {
             }
         })
     }
-    
-    saveImage(params){
-        let tempPath ='';
+
+    saveImage(params) {
+        wx.showLoading({
+            title: '图片下载中...',
+            mask: true,
+        });
+        let tempPath = '';
         this.createImage(params)
         .then(path=>{
             tempPath = path;
@@ -314,8 +318,8 @@ class weappCanvas {
     textRender(options) {
         this.vm.save();
         this.setLineSpace(options);
-        this.vm.setFontSize(options.fontSize);
-        this.vm.setFillStyle(options.color);
+        this.vm.setFontSize(options.fontSize || 16);
+        this.vm.setFillStyle(options.color || '#000000');
         if (options.overflow == 'ellipsis') {
             if (!options.maxLength) {
                 console.error('需要指定最大字节数');
@@ -333,7 +337,7 @@ class weappCanvas {
             let totalLines = Math.ceil(this.getStringByteLength(options.text) / options.maxLength);
             for (let i = 0; i < totalLines; i++) {
                 let text = this.sliceByByte(options.text, i * options.maxLength, (i + 1) * options.maxLength);
-                this.vm.fillText(text, options.x, (i + 1) * options.y + options.lineSpace * i);
+                this.vm.fillText(text, options.x, i* (options.fontSize) + options.y + options.lineSpace * i);
             }
             return
         }
