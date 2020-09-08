@@ -6,6 +6,19 @@
 
 ## 更新/fix
 
++ 增加: 支持图片mode(仅支持`aspectFit`和`aspectFill`) 效果和image组件一致 `v1.0.2`
+```js
+    cav.image({
+        url: "https://dss3.bdstatic.com/70cFv8Sh_Q1YnxGkpoWK1HF6hhy/it/u=1830914723,3154965800&fm=26&gp=0.jpg",
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 200,
+        mode: "aspectFill",
+    })
+```
+![image](./006.png) aspectFit
+![image](./007.png) aspectFill
 + 修复bug `v1.0.1`
 + 按照链式调用的顺序渲染 -> 书写顺序在后的渲染在上层
 + image 支持圆角
@@ -220,6 +233,7 @@ cav //
 |width|number|宽|否
 |height|number|高|否
 |radius|number|圆角|否
+|mode|string|(仅支持`aspectFit`和`aspectFill`) 效果和image组件一致|否
 
 ### text元素 cav.text(options)
 

@@ -1,7 +1,7 @@
 /**
  * 微信canvas库封装
  * @author magic-zhu
- * @version 1.0.1
+ * @version 1.0.2
  */
 /**
  * 当在组件中使用时需要传入 this (组件的this)
@@ -31,7 +31,7 @@ class weappCanvas {
     }
 
     box(options) {
-        let render = () =>{
+        let render = () => {
             this.boxRender(options);
         }
         this.renderQuene.push(render);
@@ -39,7 +39,7 @@ class weappCanvas {
     }
 
     text(options) {
-        let render = () =>{
+        let render = () => {
             this.textRender(options);
         }
         this.renderQuene.push(render);
@@ -49,7 +49,7 @@ class weappCanvas {
     image(options) {
         this.imageQueue.push(options);
         this.imageQueneBackup.push(options);
-        let render = () =>{
+        let render = () => {
             this.imageRender(options);
         }
         this.renderQuene.push(render)
@@ -59,9 +59,9 @@ class weappCanvas {
     draw(save = false) {
         return new Promise(resolve => {
             if (this.imageQueue.length != 0) {
-                this.preLoadImage(()=>{
+                this.preLoadImage(() => {
                     this.render();
-                    this.vm.draw(save,()=>{
+                    this.vm.draw(save, () => {
                         resolve()
                     })
                 })
@@ -75,22 +75,25 @@ class weappCanvas {
     }
 
     createImage(params) {
-        if(!params){
+        if (!params) {
             params = {};
         }
-        if(!params.canvasId){
+        if (!params.canvasId) {
             params.canvasId = this.canvasId;
         }
-        return new Promise(resolve=>{
-            if(this.canvasTempFilePath==''){
+        return new Promise(resolve => {
+            if (this.canvasTempFilePath == '') {
                 wx.canvasToTempFilePath({
                     ...params,
-                    success:(res)=>{
+                    success: (res) => {
                         this.canvasTempFilePath = res.tempFilePath;
                         resolve(res.tempFilePath)
-                    }
-                },this.component)
-            }else{
+                    },
+                    fail: (res) => {
+                        console.log(res)
+                    },
+                }, this.component)
+            } else {
                 resolve(this.canvasTempFilePath)
             }
         })
@@ -103,15 +106,16 @@ class weappCanvas {
         });
         let tempPath = '';
         this.createImage(params)
-        .then(path=>{
+            .then(path => {
             tempPath = path;
             return this.checkAuthor()
         })
-        .then(()=>{
-            return new Promise(resolve=>{
+            .then(() => {
+                return new Promise(resolve => {
+                    wx.hideLoading();
                 wx.saveImageToPhotosAlbum({
                     filePath: tempPath,
-                    success: ()=>{
+                        success: () => {
                         wx.showToast({
                             title: '保存图片成功',
                             duration: 1500,
@@ -119,12 +123,12 @@ class weappCanvas {
                         });
                         resolve()
                     },
-                    fail: (err)=>{
+                        fail: (err) => {
                         wx.showToast({
                             title: '保存图片失败',
                             duration: 1500,
                             mask: false,
-                            icon:'none'
+                                icon: 'none'
                         });
                     },
                 });
@@ -132,24 +136,43 @@ class weappCanvas {
         })
     }
 
+    setCanvasTempFilePath(path) {
+        this.canvasTempFilePath = path
+        return this
+    }
+
     // =================内部方法=================
 
-    checkAuthor(){
-        return new Promise (resolve=>{
+    checkAuthor() {
+        return new Promise(resolve => {
             wx.getSetting({
-                success: (res)=>{
+                success: (res) => {
                     //已授权 或者 从未授权过
-                    if(res.authSetting['scope.writePhotosAlbum']==undefined||res.authSetting['scope.writePhotosAlbum']){
+                    if (res.authSetting['scope.writePhotosAlbum'] == undefined || res.authSetting['scope.writePhotosAlbum']) {
                         resolve()
-                    }else{//拒绝了授权
+                    } else {//拒绝了授权
+                        wx.hideLoading()
+                        wx.showModal({
+                            title: '温馨提示',
+                            content: '检测到您曾经拒绝授权相册,是否重新授权',
+                            showCancel: true,
+                            cancelText: '我再想想',
+                            confirmText: '重新授权',
+                            success: (result) => {
+                                if (result.confirm) {
                         wx.openSetting({
-                            fail: (err)=>{
+                                        fail: (err) => {
                                 console.log(err)
                             },
                         });
                     }
                 },
-                fail: (err)=>{
+                            fail: () => { },
+                            complete: () => { }
+                        });
+                    }
+                },
+                fail: (err) => {
                     console.log(err)
                 },
             });
@@ -227,11 +250,11 @@ class weappCanvas {
         }
     }
 
-    setTransform(options){
-        if(options.scale){
-            
+    setTransform(options) {
+        if (options.scale) {
+
         }
-        if(options.rotate){
+        if (options.rotate) {
 
         }
     }
@@ -250,6 +273,52 @@ class weappCanvas {
         this.vm.arc(x + r, y + r, r, Math.PI, 1.5 * Math.PI);
         this.vm.closePath();
     }
+
+    /**
+     * 根据模式得到绘制图片需要的参数
+     * @param {*} mode 
+     * @param {*} imgWidth - 图片的真是宽度
+     * @param {*} imgHeight - 图片的真实高度
+     * @param {*} sWidth - 设定宽度
+     * @param {*} sHeight - 设定高度
+     */
+    adjustImageByMode(mode, imgWidth, imgHeight, sWidth, sHeight, x, y) {
+        let cx, cy, cw, ch, sx, sy, sw, sh;
+        switch (mode) {
+            case "aspectFill":
+                if (imgWidth <= imgHeight) {
+                    let p = imgWidth / sWidth;
+                    cw = imgWidth;
+                    ch = sHeight * p;
+                    cx = 0;
+                    cy = (imgHeight - ch) / 2;
+                } else {
+                    let p = imgHeight / sHeight;
+                    cw = sWidth * p;
+                    ch = imgHeight;
+                    cx = (imgWidth - cw) / 2;
+                    cy = 0;
+                }
+                break
+            case "aspectFit":
+                if (imgWidth <= imgHeight) {
+                    let p = imgHeight / sHeight;
+                    sw = imgWidth / p;
+                    sh = sHeight;
+                    sx = x + (sWidth - sw) / 2;
+                    sy = y;
+                } else {
+                    let p = imgWidth / sWidth;
+                    sw = sWidth;
+                    sh = imgHeight / p;
+                    sx = x;
+                    sy = y + (sHeight - sh) / 2;
+                }
+                break
+        }
+        return { cx, cy, cw, ch, sx, sy, sw, sh }
+    }
+
     /**
      * 获取字符串的字节长度
      * @param {String} value -输入值
@@ -294,8 +363,6 @@ class weappCanvas {
         return result
     }
 
-    // =================渲染器=================
-
     boxRender(options) {
         this.vm.save();
         this.setBackground(options);
@@ -337,7 +404,7 @@ class weappCanvas {
             let totalLines = Math.ceil(this.getStringByteLength(options.text) / options.maxLength);
             for (let i = 0; i < totalLines; i++) {
                 let text = this.sliceByByte(options.text, i * options.maxLength, (i + 1) * options.maxLength);
-                this.vm.fillText(text, options.x, i* (options.fontSize) + options.y + options.lineSpace * i);
+                this.vm.fillText(text, options.x, i * (options.fontSize) + options.y + options.lineSpace * i);
             }
             return
         }
@@ -347,16 +414,27 @@ class weappCanvas {
 
     imageRender(options) {
         this.vm.save();
-        if(options.radius){
+        if (options.radius) {
             this.drawRadiusRoute(
                 options.x,
                 options.y,
-                options.width||options.swidth,
-                options.height||options.sHeight,
+                options.width || options.swidth,
+                options.height || options.sHeight,
                 options.radius);
             this.vm.clip();
         }
         let temp = JSON.parse(JSON.stringify(this.imageQueue[0]));
+        if (options.mode) {
+            let { cx, cy, cw, ch, sx, sy, sw, sh } = this.adjustImageByMode(options.mode, temp.swidth, temp.sheight, temp.width, temp.height, temp.x, temp.y);
+            switch (options.mode) {
+                case 'aspectFit':
+                    this.vm.drawImage(temp.url, sx, sy, sw, sh,)
+                    break;
+                case 'aspectFill':
+                    this.vm.drawImage(temp.url, cx, cy, cw, ch, temp.x, temp.y, temp.width, temp.height)
+                    break;
+            }
+        } else {
         this.vm.drawImage(
             temp.url,
             temp.x,
@@ -364,12 +442,13 @@ class weappCanvas {
             temp.width || temp.swidth,
             temp.height || temp.sheight,
         )
+        }
         this.imageQueue.shift();
         this.vm.restore();
     }
 
-    render(){
-        this.renderQuene.forEach(ele=>{
+    render() {
+        this.renderQuene.forEach(ele => {
             ele();
         })
         this.imageQueue = JSON.parse(JSON.stringify(this.imageQueneBackup));
