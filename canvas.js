@@ -1,7 +1,7 @@
 /**
  * 微信canvas库封装
  * @author magic-zhu
- * @version 1.0.2
+ * @version 1.0.3
  */
 /**
  * 当在组件中使用时需要传入 this (组件的this)
@@ -57,30 +57,27 @@ class weappCanvas {
     }
 
     draw(save = false) {
+        const _render = (callback) => {
+            this.render();
+            this.vm.draw(save, () => {
+                callback()
+            });
+        }
         return new Promise(resolve => {
             if (this.imageQueue.length != 0) {
-                this.preLoadImage(() => {
-                    this.render();
-                    this.vm.draw(save, () => {
-                        resolve()
+                this.preLoadImage()
+                    .then(() => {
+                        _render(resolve)
                     })
-                })
             } else {
-                this.render();
-                this.vm.draw(save, () => {
-                    resolve()
-                });
+                _render(resolve)
             }
         })
     }
 
     createImage(params) {
-        if (!params) {
-            params = {};
-        }
-        if (!params.canvasId) {
-            params.canvasId = this.canvasId;
-        }
+        if (!params) params = {};
+        if (!params.canvasId) params.canvasId = this.canvasId;
         return new Promise(resolve => {
             if (this.canvasTempFilePath == '') {
                 wx.canvasToTempFilePath({
@@ -90,7 +87,7 @@ class weappCanvas {
                         resolve(res.tempFilePath)
                     },
                     fail: (res) => {
-                        console.log(res)
+                        throw new Error(res)
                     },
                 }, this.component)
             } else {
@@ -107,33 +104,33 @@ class weappCanvas {
         let tempPath = '';
         this.createImage(params)
             .then(path => {
-            tempPath = path;
-            return this.checkAuthor()
-        })
+                tempPath = path;
+                return this.checkAuthor()
+            })
             .then(() => {
                 return new Promise(resolve => {
                     wx.hideLoading();
-                wx.saveImageToPhotosAlbum({
-                    filePath: tempPath,
+                    wx.saveImageToPhotosAlbum({
+                        filePath: tempPath,
                         success: () => {
-                        wx.showToast({
-                            title: '保存图片成功',
-                            duration: 1500,
-                            mask: false,
-                        });
-                        resolve()
-                    },
+                            wx.showToast({
+                                title: '保存图片成功',
+                                duration: 1500,
+                                mask: false,
+                            });
+                            resolve()
+                        },
                         fail: (err) => {
-                        wx.showToast({
-                            title: '保存图片失败',
-                            duration: 1500,
-                            mask: false,
+                            wx.showToast({
+                                title: '保存图片失败',
+                                duration: 1500,
+                                mask: false,
                                 icon: 'none'
-                        });
-                    },
-                });
+                            });
+                        },
+                    });
+                })
             })
-        })
     }
 
     setCanvasTempFilePath(path) {
@@ -143,39 +140,55 @@ class weappCanvas {
 
     // =================内部方法=================
 
-    checkAuthor() {
-        return new Promise(resolve => {
+    _getSetting() {
+        return new Promise((resolve) => {
             wx.getSetting({
                 success: (res) => {
+                    resolve(res)
+                },
+                fail: (err) => {
+                    throw new Error(err)
+                }
+            })
+        })
+    }
+
+    _showModal() {
+        wx.showModal({
+            title: '温馨提示',
+            content: '检测到您曾经拒绝授权相册,是否重新授权',
+            showCancel: true,
+            cancelText: '我再想想',
+            confirmText: '重新授权',
+            success: (result) => {
+                if (result.confirm) {
+                    wx.openSetting({
+                        fail: (err) => {
+                            throw new Error(err)
+                        },
+                    });
+                }
+            },
+            fail: (err) => {
+                throw new Error(err)
+            },
+        });
+    }
+
+    checkAuthor() {
+        return new Promise(resolve => {
+            this._getSetting()
+                .then((res) => {
                     //已授权 或者 从未授权过
-                    if (res.authSetting['scope.writePhotosAlbum'] == undefined || res.authSetting['scope.writePhotosAlbum']) {
+                    if (res.authSetting['scope.writePhotosAlbum'] == undefined
+                        || res.authSetting['scope.writePhotosAlbum']
+                    ) {
                         resolve()
                     } else {//拒绝了授权
                         wx.hideLoading()
-                        wx.showModal({
-                            title: '温馨提示',
-                            content: '检测到您曾经拒绝授权相册,是否重新授权',
-                            showCancel: true,
-                            cancelText: '我再想想',
-                            confirmText: '重新授权',
-                            success: (result) => {
-                                if (result.confirm) {
-                        wx.openSetting({
-                                        fail: (err) => {
-                                console.log(err)
-                            },
-                        });
+                        _this.showModal()
                     }
-                },
-                            fail: () => { },
-                            complete: () => { }
-                        });
-                    }
-                },
-                fail: (err) => {
-                    console.log(err)
-                },
-            });
+                });
         })
     }
 
@@ -189,22 +202,28 @@ class weappCanvas {
                     resolve(result.path)
                 },
                 fail: (err) => {
-                    console.log(err)
+                    throw new Error(err)
                 },
             });
         })
 
     }
 
-    preLoadImage(callback) {
-        let t = this.imageQueue.map((item, index) => {
-            return this.downLoadImage(item.url, index)
-        })
-        Promise.all(t).then(res => {
-            res.forEach((item, index) => {
-                this.imageQueue[index].url = item
+    preLoadImage() {
+        return new Promise(resolve => {
+            let t = this.imageQueue.map((item, index) => {
+                return this.downLoadImage(item.url, index)
             })
-            callback()
+            Promise.all(t)
+                .then(res => {
+                    res.forEach((item, index) => {
+                        this.imageQueue[index].url = item
+                    })
+                    resolve()
+                })
+                .catch(err => {
+                    throw new Error(err)
+                })
         })
     }
 
@@ -247,15 +266,6 @@ class weappCanvas {
         if (options.lineSpace && (!options.fontSize || !options.overflow || options.overflow != 'wrap')) {
             console.error('lineSpace需要搭配fontSize和overflow:wrap来使用');
             return
-        }
-    }
-
-    setTransform(options) {
-        if (options.scale) {
-
-        }
-        if (options.rotate) {
-
         }
     }
 
@@ -381,6 +391,54 @@ class weappCanvas {
         }
         this.vm.restore();
     }
+    handleImageRadius(options){
+        if (options.radius) {
+            this.drawRadiusRoute(
+                options.x,
+                options.y,
+                options.width || options.swidth,
+                options.height || options.sHeight,
+                options.radius
+            );
+            this.vm.clip();
+        }
+    }
+    
+    drawImageByMode(options){
+        let temp = this.copy(this.imageQueue[0])
+        if (options.mode) {
+            let { cx, cy, cw, ch, sx, sy, sw, sh } = this.adjustImageByMode(
+                options.mode,
+                temp.swidth,
+                temp.sheight,
+                temp.width,
+                temp.height,
+                temp.x,
+                temp.y
+            );
+            switch (options.mode) {
+                case 'aspectFit':
+                    this.vm.drawImage(temp.url, sx, sy, sw, sh,)
+                    break;
+                case 'aspectFill':
+                    this.vm.drawImage(temp.url, cx, cy, cw, ch, temp.x, temp.y, temp.width, temp.height)
+                    break;
+            }
+        } else {
+            this.vm.drawImage(
+                temp.url,
+                temp.x,
+                temp.y,
+                temp.width || temp.swidth,
+                temp.height || temp.sheight,
+            )
+        }
+        this.imageQueue.shift()
+    }
+
+    copy(input){
+        return JSON.parse(JSON.stringify(input))
+    }
 
     textRender(options) {
         this.vm.save();
@@ -413,38 +471,10 @@ class weappCanvas {
     }
 
     imageRender(options) {
-        this.vm.save();
-        if (options.radius) {
-            this.drawRadiusRoute(
-                options.x,
-                options.y,
-                options.width || options.swidth,
-                options.height || options.sHeight,
-                options.radius);
-            this.vm.clip();
-        }
-        let temp = JSON.parse(JSON.stringify(this.imageQueue[0]));
-        if (options.mode) {
-            let { cx, cy, cw, ch, sx, sy, sw, sh } = this.adjustImageByMode(options.mode, temp.swidth, temp.sheight, temp.width, temp.height, temp.x, temp.y);
-            switch (options.mode) {
-                case 'aspectFit':
-                    this.vm.drawImage(temp.url, sx, sy, sw, sh,)
-                    break;
-                case 'aspectFill':
-                    this.vm.drawImage(temp.url, cx, cy, cw, ch, temp.x, temp.y, temp.width, temp.height)
-                    break;
-            }
-        } else {
-        this.vm.drawImage(
-            temp.url,
-            temp.x,
-            temp.y,
-            temp.width || temp.swidth,
-            temp.height || temp.sheight,
-        )
-        }
-        this.imageQueue.shift();
-        this.vm.restore();
+        this.vm.save()
+        this.handleImageRadius(options)
+        this.drawImageByMode(options)
+        this.vm.restore()
     }
 
     render() {
