@@ -194,19 +194,22 @@ class weappCanvas {
 
     downLoadImage(url, index) {
         return new Promise(resolve => {
-            wx.getImageInfo({
-                src: url,
-                success: (result) => {
-                    this.imageQueue[index].swidth = result.width
-                    this.imageQueue[index].sheight = result.height
-                    resolve(result.path)
-                },
-                fail: (err) => {
-                    throw new Error(err)
-                },
-            });
+            if(url.indexOf('http')==-1){
+                resolve(url)
+            }else{
+                wx.getImageInfo({
+                    src: url,
+                    success: (result) => {
+                        this.imageQueue[index].swidth = result.width
+                        this.imageQueue[index].sheight = result.height
+                        resolve(result.path)
+                    },
+                    fail: (err) => {
+                        throw new Error(err)
+                    },
+                })
+            }
         })
-
     }
 
     preLoadImage() {
