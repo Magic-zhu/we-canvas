@@ -380,7 +380,6 @@ class weappCanvas {
         this.vm.save();
         this.setBackground(options);
         this.setBorder(options);
-        this.setTransform(options);
         //区分是否有圆角采用不同模式渲染
         if (options.radius) {
             let { x, y } = options;
